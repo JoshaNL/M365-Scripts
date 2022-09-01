@@ -1,6 +1,6 @@
 ﻿##### <INFO> #####
 
-# File:                           Group Member Adder
+# File:                           Channel Member Adder
 # Version:                        0.1.0 Alpha
 # Date:                           1 September 2022
 # Author:                         Josha
