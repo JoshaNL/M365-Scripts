@@ -1,8 +1,8 @@
 ﻿##### <INFO> #####
 
 # File:                           Group Member Adder
-# Version:                        0.1.0 Alpha
-# Date:                           31 August 2022
+# Version:                        0.1.1 Alpha
+# Date:                           1 September 2022
 # Author:                         Josha
 # Website:                        https://github.com/JoshaNL
 
@@ -42,6 +42,7 @@ $global:Logs = $null
 $global:CsvCheck = $null
 $global:CSV = $null
 $global:Group = $null
+$global:MFA = $null
 
 ####### - FUNCTIONS - ######
 function LogVerbose($message) {
@@ -67,13 +68,13 @@ function LogError($message) {
 function SetupEnvironment {
     # Install Modules
     InstallModule("AzureAD")
-    InstallModule("MSOnline")
+    InstallModule("MicrosoftTeams")
 
     # Check Modules
     $AzureADCheck = CheckModule("AzureAD")
-    $MSOnlineCheck = CheckModule("MSOnline")
-    if(-Not $AzureADCheck -Or -Not $MSOnlineCheck) {
-        LogError("AzureAD or MSOnline modules missing!")
+    $MicrosoftTeamsCheck = CheckModule("MicrosoftTeams")
+    if(-Not $AzureADCheck -Or -Not $MicrosoftTeamsCheck) {
+        LogError("AzureAD or MicrosoftTeams modules missing!")
         exit
     }
 }
@@ -163,10 +164,19 @@ function ConnectAzureAD() {
             exit
         }
     }
+
+    while($global:MFA -ne "y" -and $global:MFA -ne "n") {
+        if($global:MFA -ne $null) {
+            LogError("Wrong value provided ('$global:MFA')! Provide 'y' or 'n'.")
+        }
+        $global:MFA = Read-Host -Prompt "Does your organization use MFA? (y or n)"
+    }
     
-    # Couldn't login using saved credentials
-    LogVerbose('Asking for setting new non-MFA credentials...')
-    $global:Credentials = Get-Credential
+    if($global:MFA -eq "n") {
+        # Couldn't login using saved credentials
+        LogVerbose('Asking for setting new non-MFA credentials...')
+        $global:Credentials = Get-Credential
+    }
     
     # If credentials set...
     if($global:Credentials -ne $null) {
@@ -176,10 +186,10 @@ function ConnectAzureAD() {
         # Login using saved credentials
         LogVerbose('Trying to login using the credentials that were set...')
         if(Connect-AzureAD -Credential $global:Credentials) {
-            LogVerbose('Logged in using the credentials that were set!')
+            LogVerbose('Logged in to AzureAD using the credentials that were set!')
             return 1
         } else {
-            LogVerbose('An error occurred while connecting to Azure AD with saved credentials.')
+            LogVerbose('An error occurred while connecting to AzureAD with saved credentials.')
             LogVerbose('Removing saved credentials...')
             Remove-Item $CredsXML
         }
@@ -187,7 +197,7 @@ function ConnectAzureAD() {
 
     # If no credentials set...
     if(Connect-AzureAD) {
-        LogVerbose('Connected using MFA-supported online AzureAD login screen!')
+        LogVerbose('Connected to AzureAD using MFA-supported online AzureAD login screen!')
         return 1
     }
 
@@ -267,7 +277,7 @@ $LoadedCsv | ForEach-Object {
         $GroupAddFail = 1
         if( -not $GroupMemberships ) {
             $GroupAddFail = 0
-        } elseif($GroupMemberships.ObjectId.Contains($global:Group)) {
+        } elseif($GroupMemberships.ObjectId.Contains($GroupID)) {
             LogVerbose("User already in the selected group (so not added again): $Email")
             $GroupAddFail = 1
         } else {
